@@ -1,10 +1,17 @@
 
-name: Monta status probe
+name: Monta charger alert
 
 on:
   workflow_dispatch:
   schedule:
     - cron: '*/5 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monta-charger-monitor
+  cancel-in-progress: false
 
 jobs:
   check:
@@ -19,8 +26,22 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Restore previous status
+        uses: actions/cache/restore@v4
+        with:
+          path: charger_state.json
+          key: monta-state-${{ github.run_id }}
+          restore-keys: |
+            monta-state-
+
       - name: Check Monta charger
         run: python check.py
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Save current status
+        uses: actions/cache/save@v4
+        with:
+          path: charger_state.json
+          key: monta-state-${{ github.run_id }}
