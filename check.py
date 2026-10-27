@@ -26,7 +26,9 @@ statuses = [unescape(s).strip() for s in matches]
 
 print("Status badges found:", statuses)
 
-if len(statuses) == 1:
-    print("Detected status:", statuses[0])
+if statuses:
+    charger_status = statuses[0]
+    print("Charger status:", charger_status)
+    print("Other badges:", statuses[1:])
 else:
-    print("Status extraction needs verification")
+    print("No charger status found")
