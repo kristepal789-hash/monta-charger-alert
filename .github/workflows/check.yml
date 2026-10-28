@@ -3,11 +3,16 @@ name: Monta charger alert
 
 on:
   workflow_dispatch:
+    inputs:
+      test_telegram:
+        description: 'Send a Telegram test message'
+        type: boolean
+        default: false
   schedule:
     - cron: '*/5 * * * *'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: monta-charger-monitor
@@ -20,28 +25,28 @@ jobs:
     steps:
       - name: Download repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
       - name: Install Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Restore previous status
-        uses: actions/cache/restore@v4
-        with:
-          path: charger_state.json
-          key: monta-state-${{ github.run_id }}
-          restore-keys: |
-            monta-state-
-
       - name: Check Monta charger
         run: python check.py
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TEST_TELEGRAM: ${{ inputs.test_telegram }}
 
-      - name: Save current status
-        uses: actions/cache/save@v4
-        with:
-          path: charger_state.json
-          key: monta-state-${{ github.run_id }}
+      - name: Save status for next run
+        if: ${{ success() && inputs.test_telegram != true }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add charger_state.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Update Monta charger status [skip ci]'
+            git push
+          fi
